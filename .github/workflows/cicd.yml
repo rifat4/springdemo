@@ -20,9 +20,9 @@ jobs:
       - name: Login to docker hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
       - name: Build docker image
-        run: docker build -t demo-cicd .
+        run: docker build -t calften/demo-cicd .
       - name: Push docker image
-        run: docker push demo-cicd:latest
+        run: docker push calften/demo-cicd:latest
 
   deploy:
     needs: build
