@@ -35,11 +35,11 @@ jobs:
             exit 1
           fi
       - name: Pull image from docker hub
-        run: sudo docker pull demo-cicd:latest
+        run: sudo docker pull calften/demo-cicd:latest
       - name: Delete existing container
         run: |
           if [ "$(sudo docker ps -aq -f name=demo)" ]; then
             sudo docker rm -f demo
           fi
       - name: Run docker container
-        run: sudo docker run -d -p 8080:8080 --name demo demo-cicd
+        run: sudo docker run -d -p 8080:8080 --name demo calften/demo-cicd
