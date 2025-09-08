@@ -12,6 +12,6 @@ public class HelloController {
 
     @GetMapping("/")
     public String index() {
-        return "New Test from " + version;
+        return "Newer Test from " + version;
     }
 }
