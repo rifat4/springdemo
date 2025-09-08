@@ -94,3 +94,4 @@ jobs:
             # ----------------------------
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
+
