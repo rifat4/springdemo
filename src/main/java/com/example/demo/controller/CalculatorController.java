@@ -26,7 +26,9 @@ public class CalculatorController {
     }
 
     private double evaluate(String expr) {
-        String[] tokens = expr.trim().split(" ");
+        expr = expr.replaceAll("\\s+", ""); // remove all spaces
+        String[] tokens = expr.split("(?<=[0-9])(?=[+\\-*/])|(?<=[+\\-*/])(?=[0-9])");
+
         if (tokens.length != 3) throw new IllegalArgumentException("Invalid expression");
 
         double num1 = Double.parseDouble(tokens[0]);
@@ -41,4 +43,5 @@ public class CalculatorController {
             default -> throw new IllegalArgumentException("Unknown operator");
         };
     }
+
 }
