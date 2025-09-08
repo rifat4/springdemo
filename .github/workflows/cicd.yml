@@ -5,7 +5,7 @@ on:
     branches: [ "test" ]
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       # ----------------------------
@@ -51,6 +51,13 @@ jobs:
           docker push calften/demo-cicd:v1
           docker push calften/demo-cicd:v2
 
+  deploy:
+    needs: build
+    runs-on: [Linux]
+    steps:
+      - name: Pull image from docker hub
+        run: sudo docker pull calften/demo-cicd:latest
+
       # ----------------------------
       # Step 7: Create Docker network
       # ----------------------------
@@ -73,11 +80,7 @@ jobs:
       # ----------------------------
       # Step 9: Run NGINX container using existing nginx folder
       # ----------------------------
-      - name: Run NGINX
-        run: |
-          docker rm -f nginx 2>/dev/null || true
-          docker run -d --name nginx --network demo-net -p 80:80 \
-            -v $(pwd)/nginx:/etc/nginx:ro nginx:latest
+
 
       # ----------------------------
       # Step 10: Output URLs
