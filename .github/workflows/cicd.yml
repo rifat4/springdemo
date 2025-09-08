@@ -78,8 +78,16 @@ jobs:
 
       - name: Run NGINX container with mounted config
         run: |
-          sudo docker rm -f nginx 2>/dev/null || true
-          sudo docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
+          # Stop & remove any container using port 80
+          sudo docker ps -q --filter "publish=80" | xargs -r sudo docker rm -f
+
+          # Run the NGINX container
+          sudo docker run -d \
+            --name nginx \
+            --network demo-net \
+            -p 80:80 \
+            -v /home/ubuntu/nginx:/etc/nginx:ro \
+            nginx:latest
 
       - name: Output URLs
         run: |
