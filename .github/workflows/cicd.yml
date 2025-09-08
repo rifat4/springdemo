@@ -53,44 +53,41 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [Linux]
+    runs-on: [ Linux ]
     steps:
-      - name: Pull image v1 from docker hub
-        run: sudo docker pull calften/demo-cicd:v1
+      - name: Remove and pull image v1 from Docker Hub
+        run: |
+          sudo docker rm -f demo-v1 2>/dev/null || true
+          sudo docker pull calften/demo-cicd:v1
 
-      - name: Pull image v2 from docker hub
-        run: sudo docker pull calften/demo-cicd:v2
+      - name: Remove and pull image v2 from Docker Hub
+        run: |
+          sudo docker rm -f demo-v2 2>/dev/null || true
+          sudo docker pull calften/demo-cicd:v2
 
-      # ----------------------------
-      # Step 7: Create Docker network
-      # ----------------------------
       - name: Create Docker network
         run: sudo docker network create demo-net || true
 
-      # ----------------------------
-      # Step 8: Run app containers
-      # ----------------------------
       - name: Run demo-v1
         run: |
-          sudo docker rm -f demo-v1 2>/dev/null || true
-          sudo docker run -d --name demo-v1 --network demo-net -p 8081:8080 calften/demo-cicd:v1
+          sudo docker run -d --name demo-v1 --network demo-net -p 8080:8080 calften/demo-cicd:v1
 
       - name: Run demo-v2
         run: |
-          sudo docker rm -f demo-v2 2>/dev/null || true
-          sudo docker run -d --name demo-v2 --network demo-net -p 8082:8080 calften/demo-cicd:v2
+          sudo docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
 
-      # ----------------------------
-      # Step 9: Run NGINX container using existing nginx folder
-      # ----------------------------
+      - name: Run NGINX container
+        run: |
+          sudo docker rm -f demo-nginx 2>/dev/null || true
+          sudo docker run -d --name demo-nginx \
+            --network demo-net \
+            -p 80:80 \
+            -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+            nginx:latest
 
-
-      # ----------------------------
-      # Step 10: Output URLs
-      # ----------------------------
       - name: Output URLs
         run: |
           echo "✅ Canary deployment complete!"
           echo "NGINX canary URL: http://localhost"
-          echo "Direct v1 URL: http://localhost:8080"
-          echo "Direct v2 URL: http://localhost:8081"
+          echo "Direct v1 URL: http://localhost:8081"
+          echo "Direct v2 URL: http://localhost:8082"
