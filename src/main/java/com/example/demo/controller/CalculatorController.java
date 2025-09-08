@@ -10,7 +10,7 @@ public class CalculatorController {
     @GetMapping("/calculate")
     public String showCalculator(Model model) {
         model.addAttribute("expression", "");
-        return "calculator";
+        return "calculator"; // This must match calculator.html
     }
 
     @PostMapping("/calculate")
