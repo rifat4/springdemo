@@ -62,6 +62,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "nginx.conf"
           target: "/home/ubuntu/nginx/"
+          overwrite: true
 
       # ----------------------------
       # Step 8: SSH into EC2 and deploy
