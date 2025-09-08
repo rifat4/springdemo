@@ -78,8 +78,8 @@ jobs:
 
       - name: Run NGINX container with mounted config
         run: |
-          # Stop & remove any container using port 80
-          sudo docker ps -q --filter "publish=80" | xargs -r sudo docker rm -f
+          # Stop & remove any container named nginx
+          sudo docker rm -f nginx 2>/dev/null || true
 
           # Run the NGINX container
           sudo docker run -d \
