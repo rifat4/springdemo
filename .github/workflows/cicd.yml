@@ -1,11 +1,11 @@
-name: demo-canary-ec2-v2-only
+name: demo-canary-ec2
 
 on:
   push:
     branches: [ "test-adammeh" ]
 
 jobs:
-  build-and-deploy-v2:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       # ----------------------------
@@ -24,42 +24,29 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Docker image for v2 only
+      # Step 3: Build Docker image for this push
       # ----------------------------
-      - name: Build new Docker image (v2)
+      - name: Build Docker image (new version)
         run: |
           mvn clean install -DskipTests
           docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
       # ----------------------------
-      # Step 4: Login to Docker Hub (must have push permission for v2)
+      # Step 4: Login to Docker Hub
       # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
       # ----------------------------
-      # Step 5: Push Docker image v2
+      # Step 5: Push new image v2
       # ----------------------------
       - name: Push Docker image v2
         run: docker push adammeh/demo-cicd:v2
 
       # ----------------------------
-      # Step 6: Copy NGINX config (optional)
+      # Step 6: Deploy to EC2
       # ----------------------------
-      - name: Copy NGINX config to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "nginx.conf"
-          target: "/home/ubuntu/nginx/"
-          overwrite: true
-
-      # ----------------------------
-      # Step 7: SSH into EC2 and deploy v2
-      # ----------------------------
-      - name: Deploy v2 to EC2
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -69,29 +56,46 @@ jobs:
             echo "Logging into Docker Hub on EC2..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Pulling new image v2..."
-            docker pull adammeh/demo-cicd:v2
-
             echo "Creating Docker network if not exists..."
             docker network create demo-net || true
 
             # ----------------------------
-            # Step 1: Ensure old container v1 is running
+            # Step 1: Check if v1 exists
             # ----------------------------
-            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
-              echo "Starting old container v1..."
-              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            if ! [ "$(docker ps -q -a -f name=demo-v1)" ]; then
+              echo "No v1 exists, starting first pushed version as v1..."
+              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v2
+            else
+              echo "v1 exists, deploying new version as v2..."
+              docker rm -f demo-v2 2>/dev/null || true
+              docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
             fi
 
             # ----------------------------
-            # Step 2: Stop old v2 container and start new v2
+            # Step 2: Deploy NGINX for canary
             # ----------------------------
-            docker rm -f demo-v2 2>/dev/null || true
-            docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
+            mkdir -p /home/ubuntu/nginx
+            cat << 'EOF' > /home/ubuntu/nginx/nginx.conf
+            events {}
+            http {
+              upstream app {
+                server demo-v1:8080 weight=90;
+                server demo-v2:8080 weight=10;
+              }
 
-            # ----------------------------
-            # Step 3: Restart NGINX to apply canary config
-            # ----------------------------
+              server {
+                listen 80;
+                location / {
+                  proxy_pass http://app;
+                }
+              }
+            }
+            EOF
+
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
+            echo "✅ Canary deployment complete!"
+            echo "NGINX canary URL: http://<your-ec2-public-ip>"
+            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
+            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
