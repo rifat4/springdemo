@@ -1,11 +1,11 @@
-name: demo pipeline
+name: demo-canary-ec2
 
 on:
   push:
     branches: [ "test" ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       # ----------------------------
@@ -33,64 +33,56 @@ jobs:
       # Step 4: Login to Docker Hub
       # ----------------------------
       - name: Login to Docker Hub
-        run: docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
+        run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
       # ----------------------------
       # Step 5: Build Docker images
       # ----------------------------
       - name: Build Docker images
         run: |
-          docker build -t calften/demo-cicd:v1 --build-arg APP_VERSION=v1 .
-          docker build -t calften/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+          docker build -t adammeh/demo-cicd:v1 --build-arg APP_VERSION=v1 .
+          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
       # ----------------------------
       # Step 6: Push Docker images
       # ----------------------------
       - name: Push Docker images
         run: |
-          docker push calften/demo-cicd:v1
-          docker push calften/demo-cicd:v2
-
-  deploy:
-    needs: build
-    runs-on: [Linux]
-    steps:
-      - name: Pull image v1 from docker hub
-        run: sudo docker pull calften/demo-cicd:v1
-
-      - name: Pull image v2 from docker hub
-        run: sudo docker pull calften/demo-cicd:v2
+          docker push adammeh/demo-cicd:v1
+          docker push adammeh/demo-cicd:v2
 
       # ----------------------------
-      # Step 7: Create Docker network
+      # Step 7: SSH into EC2 and deploy
       # ----------------------------
-      - name: Create Docker network
-        run: sudo docker network create demo-net || true
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Logging into Docker Hub..."
+            docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
 
-      # ----------------------------
-      # Step 8: Run app containers
-      # ----------------------------
-      - name: Run demo-v1
-        run: |
-          sudo docker rm -f demo-v1 2>/dev/null || true
-          sudo docker run -d --name demo-v1 --network demo-net -p 8081:8080 calften/demo-cicd:v1
+            echo "Pulling images..."
+            docker pull adammeh/demo-cicd:v1
+            docker pull adammeh/demo-cicd:v2
 
-      - name: Run demo-v2
-        run: |
-          sudo docker rm -f demo-v2 2>/dev/null || true
-          sudo docker run -d --name demo-v2 --network demo-net -p 8082:8080 calften/demo-cicd:v2
+            echo "Creating Docker network..."
+            docker network create demo-net || true
 
-      # ----------------------------
-      # Step 9: Run NGINX container using existing nginx folder
-      # ----------------------------
+            echo "Stopping old containers..."
+            docker rm -f demo-v1 demo-v2 2>/dev/null || true
 
+            echo "Starting new containers..."
+            docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
 
-      # ----------------------------
-      # Step 10: Output URLs
-      # ----------------------------
-      - name: Output URLs
-        run: |
-          echo "✅ Canary deployment complete!"
-          echo "NGINX canary URL: http://localhost"
-          echo "Direct v1 URL: http://localhost:8080"
-          echo "Direct v2 URL: http://localhost:8081"
+            echo "Setting up NGINX..."
+            docker rm -f nginx 2>/dev/null || true
+            docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
+
+            echo "✅ Canary deployment complete!"
+            echo "NGINX canary URL: http://<your-ec2-public-ip>"
+            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
+            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
