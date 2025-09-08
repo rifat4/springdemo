@@ -1,83 +1,90 @@
-
-name: demo-canary-pipeline
+name: demo pipeline
 
 on:
   push:
     branches: [ "test" ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
+      # ----------------------------
+      # Step 1: Checkout code
+      # ----------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ----------------------------
+      # Step 2: Set up Java
+      # ----------------------------
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # ----------------------------
+      # Step 3: Build Spring Boot app
+      # ----------------------------
       - name: Build with Maven
         run: mvn clean install -DskipTests
 
+      # ----------------------------
+      # Step 4: Login to Docker Hub
+      # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
 
-      - name: Build Docker image
-        run: docker build -t calften/demo-cicd:latest .
-
-      - name: Push Docker image
-        run: docker push calften/demo-cicd:latest
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ensure Docker is installed
+      # ----------------------------
+      # Step 5: Build Docker images
+      # ----------------------------
+      - name: Build Docker images
         run: |
-          if ! [ -x "$(command -v docker)" ]; then
-            echo "Error: Docker is not installed." >&2
-            exit 1
-          fi
+          docker build -t calften/demo-cicd:v1 --build-arg APP_VERSION=v1 .
+          docker build -t calften/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
-      # Step 1: Run new container alongside old one
-      - name: Run new version container
+      # ----------------------------
+      # Step 6: Push Docker images
+      # ----------------------------
+      - name: Push Docker images
         run: |
-          # Remove old "v2" container if exists
-          if [ "$(sudo docker ps -aq -f name=demo-v2)" ]; then
-            sudo docker rm -f demo-v2
-          fi
-          # Start new container on port 8081
-          sudo docker run -d --name demo-v2 -p 8081:8080 calften/demo-cicd:latest
+          docker push calften/demo-cicd:v1
+          docker push calften/demo-cicd:v2
 
-      # Step 2: Make sure old container exists (run old if first deploy)
-      - name: Ensure old container exists
+      # ----------------------------
+      # Step 7: Create Docker network
+      # ----------------------------
+      - name: Create Docker network
+        run: docker network create demo-net || true
+
+      # ----------------------------
+      # Step 8: Run app containers
+      # ----------------------------
+      - name: Run demo-v1
         run: |
-          if ! [ "$(sudo docker ps -q -f name=demo-v1)" ]; then
-            echo "Old container not found, deploying first version..."
-            sudo docker run -d --name demo-v1 -p 8080:8080 calften/demo-cicd:previous
-          fi
+          docker rm -f demo-v1 2>/dev/null || true
+          docker run -d --name demo-v1 --network demo-net -p 8080:8080 calften/demo-cicd:v1
 
-      # Step 3: Set up NGINX for canary traffic
-      - name: Configure NGINX for 90/10 canary
+      - name: Run demo-v2
         run: |
-          echo '
-          events {}
-          http {
-              upstream app_backend {
-                  server localhost:8080 weight=9;   # 90% traffic to v1
-                  server localhost:8081 weight=1;   # 10% traffic to v2
-              }
-              server {
-                  listen 80;
-                  location / {
-                      proxy_pass http://app_backend;
-                  }
-              }
-          }' | sudo tee /etc/nginx/nginx.conf
-          sudo nginx -s reload || sudo nginx
+          docker rm -f demo-v2 2>/dev/null || true
+          docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
 
-      # Step 4: Optionally, clean up after rollout complete (manual step later)
-      # sudo docker rm -f demo-v1
-      # sudo docker rename demo-v2 demo-v1
+      # ----------------------------
+      # Step 9: Run NGINX container using existing nginx folder
+      # ----------------------------
+      - name: Run NGINX
+        run: |
+          docker rm -f nginx 2>/dev/null || true
+          docker run -d --name nginx --network demo-net -p 80:80 \
+            -v $(pwd)/nginx:/etc/nginx:ro nginx:latest
+
+      # ----------------------------
+      # Step 10: Output URLs
+      # ----------------------------
+      - name: Output URLs
+        run: |
+          echo "✅ Canary deployment complete!"
+          echo "NGINX canary URL: http://localhost"
+          echo "Direct v1 URL: http://localhost:8080"
+          echo "Direct v2 URL: http://localhost:8081"
