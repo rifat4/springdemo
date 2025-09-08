@@ -1,4 +1,4 @@
-package com.example.springboot;
+package com.example.demo; // ✅ correct
 
 import java.util.Arrays;
 
