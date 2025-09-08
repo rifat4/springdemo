@@ -73,12 +73,12 @@ jobs:
       - name: Run demo-v1
         run: |
           sudo docker rm -f demo-v1 2>/dev/null || true
-          sudo docker run -d --name demo-v1 --network demo-net -p 8080:8080 calften/demo-cicd:v1
+          sudo docker run -d --name demo-v1 --network demo-net -p 8081:8080 calften/demo-cicd:v1
 
       - name: Run demo-v2
         run: |
           sudo docker rm -f demo-v2 2>/dev/null || true
-          sudo docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
+          sudo docker run -d --name demo-v2 --network demo-net -p 8082:8080 calften/demo-cicd:v2
 
       # ----------------------------
       # Step 9: Run NGINX container using existing nginx folder
