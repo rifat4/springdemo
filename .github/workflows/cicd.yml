@@ -24,42 +24,35 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Docker image (new version v2)
+      # Step 3: Build Spring Boot app
       # ----------------------------
-      - name: Build Docker image
-        run: |
-          mvn clean install -DskipTests
-          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+      - name: Build with Maven
+        run: mvn clean install -DskipTests
 
       # ----------------------------
-      # Step 4: Login & Push to Docker Hub
+      # Step 4: Login to Docker Hub
       # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-      - name: Push Docker image
-        run: docker push adammeh/demo-cicd:v2
-
       # ----------------------------
-      # Step 5: Create NGINX config dynamically
+      # Step 5: Build Docker images
       # ----------------------------
-      - name: Create NGINX config
+      - name: Build Docker images
         run: |
-          echo '
-          upstream demo_app {
-              server demo-v1:8080 weight=7;
-              server demo-v2:8080 weight=3;
-          }
-
-          server {
-              listen 80;
-              location / {
-                  proxy_pass http://demo_app;
-              }
-          }' > nginx.conf
+          docker build -t adammeh/demo-cicd:v1 --build-arg APP_VERSION=v1 .
+          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
       # ----------------------------
-      # Step 6: Copy NGINX config to EC2
+      # Step 6: Push Docker images
+      # ----------------------------
+      - name: Push Docker images
+        run: |
+          docker push adammeh/demo-cicd:v1
+          docker push adammeh/demo-cicd:v2
+
+      # ----------------------------
+      # Step 7: Upload NGINX config
       # ----------------------------
       - name: Upload NGINX config to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -68,12 +61,12 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "nginx.conf"
-          target: "/home/ubuntu/nginx/nginx.conf"
+          target: "/home/ubuntu/nginx/"
 
       # ----------------------------
-      # Step 7: SSH into EC2 and deploy
+      # Step 8: SSH into EC2 and deploy
       # ----------------------------
-      - name: Deploy on EC2
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -83,27 +76,25 @@ jobs:
             echo "Logging into Docker Hub..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Pulling new image v2..."
+            echo "Pulling images..."
+            docker pull adammeh/demo-cicd:v1
             docker pull adammeh/demo-cicd:v2
 
             echo "Creating Docker network..."
             docker network create demo-net || true
 
-            echo "Ensuring v1 is running..."
-            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
-              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
-            fi
+            echo "Stopping old containers..."
+            docker rm -f demo-v1 demo-v2 2>/dev/null || true
 
-            echo "Restarting v2..."
-            docker rm -f demo-v2 2>/dev/null || true
+            echo "Starting new containers..."
+            docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
             docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
 
             echo "Restarting NGINX..."
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
-            echo "Reloading NGINX config..."
-            docker exec nginx nginx -s reload || true
-
-            echo "✅ Deployment complete!"
-            echo "http://<your-ec2-public-ip>"
+            echo "✅ Canary deployment complete!"
+            echo "NGINX canary URL: http://<your-ec2-public-ip>"
+            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
+            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
