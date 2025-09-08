@@ -1,22 +1,16 @@
-name: demo-canary-ec2-v2-only
+name: demo-canary-ec2
 
 on:
   push:
     branches: ["test-adammeh"]
 
 jobs:
-  build-and-deploy-v2:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # ----------------------------
-      # Step 1: Checkout code
-      # ----------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ----------------------------
-      # Step 2: Set up Java
-      # ----------------------------
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -24,27 +18,47 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Docker image for v2 only
+      # Step 1: Check if v1 exists on Docker Hub
       # ----------------------------
-      - name: Build new Docker image (v2)
+      - name: Check if v1 exists
+        id: check_v1
         run: |
-          mvn clean install -DskipTests
-          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+          if docker manifest inspect adammeh/demo-cicd:v1 > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
       # ----------------------------
-      # Step 4: Login to Docker Hub (must have push permission for v2)
+      # Step 2: Build and tag Docker image
+      # ----------------------------
+      - name: Build Docker image
+        run: |
+          mvn clean install -DskipTests
+          if [ "${{ steps.check_v1.outputs.exists }}" = "false" ]; then
+            echo "👉 Building v1 for the first time"
+            docker build -t adammeh/demo-cicd:v1 --build-arg APP_VERSION=v1 .
+          else
+            echo "👉 Building new v2"
+            docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+          fi
+
+      # ----------------------------
+      # Step 3: Push to Docker Hub
       # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-      # ----------------------------
-      # Step 5: Push Docker image v2
-      # ----------------------------
-      - name: Push Docker image v2
-        run: docker push adammeh/demo-cicd:v2
+      - name: Push Docker image
+        run: |
+          if [ "${{ steps.check_v1.outputs.exists }}" = "false" ]; then
+            docker push adammeh/demo-cicd:v1
+          else
+            docker push adammeh/demo-cicd:v2
+          fi
 
       # ----------------------------
-      # Step 6: Copy NGINX config to EC2
+      # Step 4: Copy NGINX config to EC2
       # ----------------------------
       - name: Copy NGINX config to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -57,44 +71,33 @@ jobs:
           overwrite: true
 
       # ----------------------------
-      # Step 7: SSH into EC2 and deploy
+      # Step 5: SSH into EC2 and deploy
       # ----------------------------
-      - name: Deploy v2 to EC2
+      - name: Deploy app to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Logging into Docker Hub on EC2..."
+            echo "Logging into Docker Hub..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Creating Docker network if not exists..."
             docker network create demo-net || true
 
-            # ----------------------------
-            # Step 1: Ensure old container v1 is running
-            # ----------------------------
-            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
-              echo "Starting old container v1..."
+            # Run v1 if it doesn't exist yet
+            if ! docker ps -a --format '{{.Names}}' | grep -q '^demo-v1$'; then
+              echo "🚀 Starting demo-v1 for the first time"
               docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
             fi
 
-            # ----------------------------
-            # Step 2: Stop and start new container v2
-            # ----------------------------
+            # Always update v2
             docker rm -f demo-v2 2>/dev/null || true
-            docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
+            docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2 || true
 
-            # ----------------------------
-            # Step 3: Restart NGINX for canary traffic
-            # ----------------------------
+            # Restart NGINX
             docker rm -f nginx 2>/dev/null || true
-            docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
+            docker run -d --name nginx --network demo-net -p 80:80 \
+              -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
-            echo "✅ Canary deployment complete!"
-            echo "NGINX canary URL: http://<your-ec2-public-ip>"
-            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
-            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
-
-
+            echo "✅ Deployment complete!"
