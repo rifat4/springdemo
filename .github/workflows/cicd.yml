@@ -82,9 +82,8 @@ jobs:
           sudo docker run -d --name demo-nginx \
             --network demo-net \
             -p 80:80 \
-            -v ${{ github.workspace }}/nginx/conf.d:/etc/nginx/conf.d:ro \
+            -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
             nginx:latest
-      
 
       - name: Output URLs
         run: |
