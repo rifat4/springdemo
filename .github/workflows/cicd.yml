@@ -80,3 +80,4 @@ jobs:
             echo "NGINX canary URL: http://<your-ec2-public-ip>"
             echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
             echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
+
