@@ -2,7 +2,7 @@ name: demo-canary-ec2
 
 on:
   push:
-    branches: [ "test" ]
+    branches: [ "test-adammeh" ]
 
 jobs:
   build-and-deploy:
