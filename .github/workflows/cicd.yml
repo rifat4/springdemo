@@ -64,11 +64,14 @@ jobs:
       - name: Set NGINX config file
         id: nginx_file
         run: |
-          if [ "${{ steps.build_target.outputs.VERSION }}" == "v1" ]; then
-            echo "file=nginx.conf" >> $GITHUB_OUTPUT
+          VERSION="${{ steps.build_target.outputs.VERSION }}"
+          echo "VERSION=$VERSION"
+          if [ "$VERSION" = "v1" ]; then
+            echo "file=nginx1.conf" >> $GITHUB_OUTPUT
           else
             echo "file=nginx2.conf" >> $GITHUB_OUTPUT
           fi
+
 
       # ----------------------------
       # Step 8: Copy NGINX config to EC2
@@ -82,6 +85,7 @@ jobs:
           source: ${{ steps.nginx_file.outputs.file }}
           target: "/home/ubuntu/nginx/"
           overwrite: true
+
 
       # ----------------------------
       # Step 9: SSH into EC2 and deploy
