@@ -129,8 +129,9 @@ jobs:
             else
               docker run -d --name nginx --network demo-net -p 80:80 \
                 -v /home/ubuntu/nginx/nginx2.conf:/etc/nginx/nginx.conf:ro \
-                nginx2:latest
+                nginx:latest
             fi
+
             
 
             echo "✅ Deployment complete! VERSION=$VERSION"
