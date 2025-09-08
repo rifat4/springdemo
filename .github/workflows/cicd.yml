@@ -65,9 +65,9 @@ jobs:
         id: nginx_file
         run: |
           if [ "${{ steps.build_target.outputs.VERSION }}" == "v1" ]; then
-            echo "file=nginx-v1.conf" >> $GITHUB_OUTPUT
+            echo "file=nginx1.conf" >> $GITHUB_OUTPUT
           else
-            echo "file=nginx-canary.conf" >> $GITHUB_OUTPUT
+            echo "file=nginx2.conf" >> $GITHUB_OUTPUT
           fi
 
       # ----------------------------
