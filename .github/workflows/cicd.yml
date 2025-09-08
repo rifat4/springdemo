@@ -1,11 +1,11 @@
-name: demo-canary-ec2
+name: demo-canary-ec2-v2-only
 
 on:
   push:
     branches: [ "test-adammeh" ]
 
 jobs:
-  build-and-deploy:
+  build-and-deploy-v2:
     runs-on: ubuntu-latest
     steps:
       # ----------------------------
@@ -24,79 +24,73 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Spring Boot app
+      # Step 3: Build Docker image for v2 only
       # ----------------------------
-      - name: Build with Maven
-        run: mvn clean install -DskipTests
+      - name: Build new Docker image (v2)
+        run: |
+          mvn clean install -DskipTests
+          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
       # ----------------------------
-      # Step 4: Login to Docker Hub
+      # Step 4: Login to Docker Hub (must have push permission for v2)
       # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
       # ----------------------------
-      # Step 5: Build Docker images
+      # Step 5: Push Docker image v2
       # ----------------------------
-      - name: Build Docker images
-        run: |
-          docker build -t adammeh/demo-cicd:v1 --build-arg APP_VERSION=v1 .
-          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+      - name: Push Docker image v2
+        run: docker push adammeh/demo-cicd:v2
 
       # ----------------------------
-      # Step 6: Push Docker images
+      # Step 6: Copy NGINX config (optional)
       # ----------------------------
-      - name: Push Docker images
-        run: |
-          docker push adammeh/demo-cicd:v1
-          docker push adammeh/demo-cicd:v2
-
-      # ----------------------------
-      # Step 7: Upload NGINX config
-      # ----------------------------
-      - name: Upload NGINX config to EC2
+      - name: Copy NGINX config to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "nginx.conf"
-          target: "/home/ubuntu/nginx/"
+          target: "/home/ubuntu/nginx/nginx.conf"
           overwrite: true
 
       # ----------------------------
-      # Step 8: SSH into EC2 and deploy
+      # Step 7: SSH into EC2 and deploy v2
       # ----------------------------
-      - name: Deploy to EC2
+      - name: Deploy v2 to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Logging into Docker Hub..."
+            echo "Logging into Docker Hub on EC2..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Pulling images..."
-            docker pull adammeh/demo-cicd:v1
+            echo "Pulling new image v2..."
             docker pull adammeh/demo-cicd:v2
 
-            echo "Creating Docker network..."
+            echo "Creating Docker network if not exists..."
             docker network create demo-net || true
 
-            echo "Stopping old containers..."
-            docker rm -f demo-v1 demo-v2 2>/dev/null || true
+            # ----------------------------
+            # Step 1: Ensure old container v1 is running
+            # ----------------------------
+            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
+              echo "Starting old container v1..."
+              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            fi
 
-            echo "Starting new containers..."
-            docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            # ----------------------------
+            # Step 2: Stop old v2 container and start new v2
+            # ----------------------------
+            docker rm -f demo-v2 2>/dev/null || true
             docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
 
-            echo "Restarting NGINX..."
+            # ----------------------------
+            # Step 3: Restart NGINX to apply canary config
+            # ----------------------------
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
-
-            echo "✅ Canary deployment complete!"
-            echo "NGINX canary URL: http://<your-ec2-public-ip>"
-            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
-            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
-
