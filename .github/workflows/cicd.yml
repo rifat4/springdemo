@@ -24,20 +24,18 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Decide which version to build
+      # Step 3: Determine version to build
       # ----------------------------
-      - name: Determine build target
+      - name: Determine build version
         id: build_target
         run: |
-          # SSH into EC2 and check if demo-v1 exists
-          if ssh -i "${{ secrets.EC2_SSH_KEY }}" ubuntu@${{ secrets.EC2_HOST }} \
-            "docker ps -a --format '{{.Names}}' | grep -w demo-v1"; then
-            echo "Building v2"
+          echo "Checking if v1 exists on Docker Hub..."
+          if docker pull adammeh/demo-cicd:v1 >/dev/null 2>&1; then
+            echo "v1 exists, building v2"
             echo "VERSION=v2" >> $GITHUB_OUTPUT
           else
-            echo "Building v1"
+            echo "v1 does not exist, building v1"
             echo "VERSION=v1" >> $GITHUB_OUTPUT
-          fi
 
       # ----------------------------
       # Step 4: Build Docker image
@@ -45,8 +43,7 @@ jobs:
       - name: Build Docker image
         run: |
           mvn clean install -DskipTests
-          docker build -t adammeh/demo-cicd:${{ steps.build_target.outputs.VERSION }} \
-            --build-arg APP_VERSION=${{ steps.build_target.outputs.VERSION }} .
+          docker build -t adammeh/demo-cicd:${{ steps.build_target.outputs.VERSION }} --build-arg APP_VERSION=${{ steps.build_target.outputs.VERSION }} .
 
       # ----------------------------
       # Step 5: Login to Docker Hub
@@ -61,20 +58,31 @@ jobs:
         run: docker push adammeh/demo-cicd:${{ steps.build_target.outputs.VERSION }}
 
       # ----------------------------
-      # Step 7: Copy NGINX config to EC2
+      # Step 7: Choose NGINX config file
       # ----------------------------
-      - name: Copy NGINX config to EC2
+      - name: Set NGINX config file
+        id: nginx_file
+        run: |
+          if [ "${{ steps.build_target.outputs.VERSION }}" == "v1" ]; then
+            echo "file=nginx.conf" >> $GITHUB_OUTPUT
+          else
+            echo "file=nginx2.conf" >> $GITHUB_OUTPUT
+
+      # ----------------------------
+      # Step 8: Copy NGINX config to EC2
+      # ----------------------------
+      - name: Copy NGINX config
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: ${{ steps.build_target.outputs.VERSION == 'v1' && 'nginx1.conf' || 'nginx2.conf' }}
+          source: ${{ steps.nginx_file.outputs.file }}
           target: "/home/ubuntu/nginx/"
           overwrite: true
 
       # ----------------------------
-      # Step 8: Deploy to EC2
+      # Step 9: SSH into EC2 and deploy
       # ----------------------------
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
@@ -83,29 +91,35 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Logging into Docker Hub..."
+            echo "Logging into Docker Hub on EC2..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            # Ensure Docker network
+            echo "Creating Docker network if not exists..."
             docker network create demo-net || true
 
-            # Run v1 if missing
-            if ! docker ps -q -f name=demo-v1; then
-              echo "Starting demo-v1..."
+            # ----------------------------
+            # Step 1: Ensure old container v1 is running
+            # ----------------------------
+            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
+              echo "Starting old container v1..."
               docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
             fi
 
-            # Run v2 if being deployed
-            if docker image inspect adammeh/demo-cicd:v2 >/dev/null 2>&1; then
+            # ----------------------------
+            # Step 2: Stop and start new container if v2
+            # ----------------------------
+            if [ "${{ steps.build_target.outputs.VERSION }}" == "v2" ]; then
               docker rm -f demo-v2 2>/dev/null || true
               docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
             fi
 
-            # Start or reload NGINX
+            # ----------------------------
+            # Step 3: Restart NGINX
+            # ----------------------------
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
             echo "✅ Deployment complete!"
-            echo "NGINX canary URL: http://<your-ec2-public-ip>"
+            echo "NGINX URL: http://<your-ec2-public-ip>"
             echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
             echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
