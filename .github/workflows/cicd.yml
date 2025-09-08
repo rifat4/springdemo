@@ -68,6 +68,7 @@ jobs:
             echo "file=nginx-v1.conf" >> $GITHUB_OUTPUT
           else
             echo "file=nginx-canary.conf" >> $GITHUB_OUTPUT
+          fi
 
       # ----------------------------
       # Step 8: Copy NGINX config to EC2
