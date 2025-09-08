@@ -87,7 +87,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: ${{ steps.nginx_file.outputs.file }}
-          target: "/home/ubuntu/nginx/nginx.conf"
+          target: "/home/ubuntu/nginx/"
           overwrite: true
 
       # ----------------------------
