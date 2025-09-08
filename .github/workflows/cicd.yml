@@ -62,20 +62,20 @@ jobs:
       # Step 7: Create Docker network
       # ----------------------------
       - name: Create Docker network
-        run: docker network create demo-net || true
+        run: sudo docker network create demo-net || true
 
       # ----------------------------
       # Step 8: Run app containers
       # ----------------------------
       - name: Run demo-v1
         run: |
-          docker rm -f demo-v1 2>/dev/null || true
-          docker run -d --name demo-v1 --network demo-net -p 8080:8080 calften/demo-cicd:v1
+          sudo docker rm -f demo-v1 2>/dev/null || true
+          sudo docker run -d --name demo-v1 --network demo-net -p 8080:8080 calften/demo-cicd:v1
 
       - name: Run demo-v2
         run: |
-          docker rm -f demo-v2 2>/dev/null || true
-          docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
+          sudo docker rm -f demo-v2 2>/dev/null || true
+          sudo docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
 
       # ----------------------------
       # Step 9: Run NGINX container using existing nginx folder
