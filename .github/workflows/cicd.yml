@@ -55,8 +55,11 @@ jobs:
     needs: build
     runs-on: [Linux]
     steps:
-      - name: Pull image from docker hub
-        run: sudo docker pull calften/demo-cicd:latest
+      - name: Pull image v1 from docker hub
+        run: sudo docker pull calften/demo-cicd:v1
+
+      - name: Pull image v2 from docker hub
+        run: sudo docker pull calften/demo-cicd:v2
 
       # ----------------------------
       # Step 7: Create Docker network
