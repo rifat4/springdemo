@@ -76,13 +76,13 @@ jobs:
         run: |
           sudo docker run -d --name demo-v2 --network demo-net -p 8081:8080 calften/demo-cicd:v2
 
-      - name: Run NGINX container
+      - name: Run NGINX container with mounted config
         run: |
           sudo docker rm -f demo-nginx 2>/dev/null || true
           sudo docker run -d --name demo-nginx \
             --network demo-net \
             -p 80:80 \
-            -v ${{ github.workspace }}/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
+            -v ${{ github.workspace }}/nginx/conf.d:/etc/nginx/conf.d:ro \
             nginx:latest
       
 
