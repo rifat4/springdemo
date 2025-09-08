@@ -122,7 +122,15 @@ jobs:
 
             # Restart NGINX to pick up new config
             docker rm -f nginx 2>/dev/null || true
-            docker run -d --name nginx --network demo-net -p 80:80 \
-              -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
+            if [ "$VERSION" = "v1" ]; then
+              docker run -d --name nginx --network demo-net -p 80:80 \
+                -v /home/ubuntu/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+                nginx:latest
+            else
+              docker run -d --name nginx --network demo-net -p 80:80 \
+                -v /home/ubuntu/nginx/nginx2.conf:/etc/nginx/nginx.conf:ro \
+                nginx2:latest
+            fi
+            
 
             echo "✅ Deployment complete! VERSION=$VERSION"
