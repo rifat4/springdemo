@@ -84,7 +84,6 @@ jobs:
             -p 80:80 \
             -v ${{ github.workspace }}/nginx/conf.d:/etc/nginx/conf.d:ro \
             nginx:latest
-      
 
       - name: Output URLs
         run: |
