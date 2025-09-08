@@ -2,11 +2,16 @@ package com.example.demo.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 public class CalculatorController {
+
+    @GetMapping("/calculate")
+    public String showCalculator(Model model) {
+        model.addAttribute("expression", "");
+        return "calculator";
+    }
 
     @PostMapping("/calculate")
     public String calculate(@RequestParam String expression, Model model) {
@@ -17,7 +22,7 @@ public class CalculatorController {
         } catch (Exception e) {
             model.addAttribute("result", "Error");
         }
-        return "calculator"; // This matches calculator.html in templates folder
+        return "calculator";
     }
 
     private double evaluate(String expr) {
