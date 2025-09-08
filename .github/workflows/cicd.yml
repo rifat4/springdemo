@@ -56,6 +56,20 @@ jobs:
           target: "/home/ubuntu/nginx/nginx.conf"
           overwrite: true
 
+           # ----------------------------
+      # Step 7: Upload NGINX config
+      # ----------------------------
+      - name: Copy NGINX config to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "nginx.conf"
+          target: "/home/ubuntu/nginx/"
+          overwrite: true
+
+
       # ----------------------------
       # Step 7: SSH into EC2 and deploy v2
       # ----------------------------
