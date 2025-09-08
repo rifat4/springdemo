@@ -78,12 +78,8 @@ jobs:
 
       - name: Run NGINX container with mounted config
         run: |
-          sudo docker rm -f demo-nginx 2>/dev/null || true
-          sudo docker run -d --name demo-nginx \
-            --network demo-net \
-            -p 80:80 \
-            -v ${{ github.workspace }}/nginx/conf.d:/etc/nginx/conf.d:ro \
-            nginx:latest
+          sudo docker rm -f nginx 2>/dev/null || true
+          sudo docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
       - name: Output URLs
         run: |
