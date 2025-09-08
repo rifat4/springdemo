@@ -36,6 +36,7 @@ jobs:
           else
             echo "v1 does not exist, building v1"
             echo "VERSION=v1" >> $GITHUB_OUTPUT
+          fi
 
       # ----------------------------
       # Step 4: Build Docker image
@@ -64,9 +65,9 @@ jobs:
         id: nginx_file
         run: |
           if [ "${{ steps.build_target.outputs.VERSION }}" == "v1" ]; then
-            echo "file=nginx.conf" >> $GITHUB_OUTPUT
+            echo "file=nginx-v1.conf" >> $GITHUB_OUTPUT
           else
-            echo "file=nginx2.conf" >> $GITHUB_OUTPUT
+            echo "file=nginx-canary.conf" >> $GITHUB_OUTPUT
 
       # ----------------------------
       # Step 8: Copy NGINX config to EC2
