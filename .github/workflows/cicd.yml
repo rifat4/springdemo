@@ -24,9 +24,16 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Spring Boot app
+      # Step 3.1: Run tests
       # ----------------------------
-      - name: Build with Maven
+      - name: Run tests
+        run: mvn test
+
+      # ----------------------------
+      # Step 3: Build artifact without testing
+      # ----------------------------
+
+      - name: Build artifact
         run: mvn clean install -DskipTests
 
       # ----------------------------
