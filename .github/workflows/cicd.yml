@@ -24,37 +24,56 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Build Spring Boot app
+      # Step 3: Build Docker image (new version v2)
       # ----------------------------
-      - name: Build with Maven
-        run: mvn clean install -DskipTests
+      - name: Build Docker image
+        run: |
+          mvn clean install -DskipTests
+          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
 
       # ----------------------------
-      # Step 4: Login to Docker Hub
+      # Step 4: Login & Push to Docker Hub
       # ----------------------------
       - name: Login to Docker Hub
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-      # ----------------------------
-      # Step 5: Build Docker images
-      # ----------------------------
-      - name: Build Docker images
-        run: |
-          docker build -t adammeh/demo-cicd:v1 --build-arg APP_VERSION=v1 .
-          docker build -t adammeh/demo-cicd:v2 --build-arg APP_VERSION=v2 .
+      - name: Push Docker image
+        run: docker push adammeh/demo-cicd:v2
 
       # ----------------------------
-      # Step 6: Push Docker images
+      # Step 5: Create NGINX config dynamically
       # ----------------------------
-      - name: Push Docker images
+      - name: Create NGINX config
         run: |
-          docker push adammeh/demo-cicd:v1
-          docker push adammeh/demo-cicd:v2
+          echo '
+          upstream demo_app {
+              server demo-v1:8080 weight=7;
+              server demo-v2:8080 weight=3;
+          }
+
+          server {
+              listen 80;
+              location / {
+                  proxy_pass http://demo_app;
+              }
+          }' > nginx.conf
+
+      # ----------------------------
+      # Step 6: Copy NGINX config to EC2
+      # ----------------------------
+      - name: Upload NGINX config to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "nginx.conf"
+          target: "/home/ubuntu/nginx/nginx.conf"
 
       # ----------------------------
       # Step 7: SSH into EC2 and deploy
       # ----------------------------
-      - name: Deploy to EC2
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -64,44 +83,27 @@ jobs:
             echo "Logging into Docker Hub..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Pulling images..."
-            docker pull adammeh/demo-cicd:v1
+            echo "Pulling new image v2..."
             docker pull adammeh/demo-cicd:v2
 
             echo "Creating Docker network..."
             docker network create demo-net || true
 
-            echo "Stopping old containers..."
-            docker rm -f demo-v1 demo-v2 nginx 2>/dev/null || true
+            echo "Ensuring v1 is running..."
+            if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
+              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            fi
 
-            echo "Starting new containers..."
-            docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            echo "Restarting v2..."
+            docker rm -f demo-v2 2>/dev/null || true
             docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
 
-            echo "Writing NGINX config..."
-            mkdir -p /home/ubuntu/nginx
-            cat <<EOF > /home/ubuntu/nginx/nginx.conf
-            upstream app_backend {
-                server demo-v1:8080 weight=5;
-                server demo-v2:8080 weight=5;
-            }
+            echo "Restarting NGINX..."
+            docker rm -f nginx 2>/dev/null || true
+            docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
-            server {
-                listen 80;
-                location / {
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_pass http://app_backend;
-                }
-            }
-            EOF
+            echo "Reloading NGINX config..."
+            docker exec nginx nginx -s reload || true
 
-            echo "Starting NGINX..."
-            docker run -d --name nginx --network demo-net -p 80:80 \
-              -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
-
-            echo "✅ Canary deployment complete!"
-            echo "NGINX canary URL: http://${{ secrets.EC2_HOST }}"
-            echo "Direct v1 URL: http://${{ secrets.EC2_HOST }}:8081"
-            echo "Direct v2 URL: http://${{ secrets.EC2_HOST }}:8082"
+            echo "✅ Deployment complete!"
+            echo "http://<your-ec2-public-ip>"
