@@ -69,7 +69,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: ${{ steps.build_target.outputs.VERSION == 'v1' && 'nginx-v1.conf' || 'nginx-canary.conf' }}
+          source: ${{ steps.build_target.outputs.VERSION == 'v1' && 'nginx1.conf' || 'nginx2.conf' }}
           target: "/home/ubuntu/nginx/"
           overwrite: true
 
