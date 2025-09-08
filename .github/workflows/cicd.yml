@@ -24,15 +24,19 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3: Decide whether to build v1 or v2
+      # Step 3: Decide which version to build
       # ----------------------------
-      - name: Decide Docker tag
-        id: decide-tag
+      - name: Determine build target
+        id: build_target
         run: |
-          if docker pull adammeh/demo-cicd:v1 >/dev/null 2>&1; then
-            echo "tag=v2" >> $GITHUB_OUTPUT
+          # SSH into EC2 and check if demo-v1 exists
+          if ssh -i "${{ secrets.EC2_SSH_KEY }}" ubuntu@${{ secrets.EC2_HOST }} \
+            "docker ps -a --format '{{.Names}}' | grep -w demo-v1"; then
+            echo "Building v2"
+            echo "VERSION=v2" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1" >> $GITHUB_OUTPUT
+            echo "Building v1"
+            echo "VERSION=v1" >> $GITHUB_OUTPUT
           fi
 
       # ----------------------------
@@ -41,8 +45,8 @@ jobs:
       - name: Build Docker image
         run: |
           mvn clean install -DskipTests
-          docker build -t adammeh/demo-cicd:${{ steps.decide-tag.outputs.tag }} \
-            --build-arg APP_VERSION=${{ steps.decide-tag.outputs.tag }} .
+          docker build -t adammeh/demo-cicd:${{ steps.build_target.outputs.VERSION }} \
+            --build-arg APP_VERSION=${{ steps.build_target.outputs.VERSION }} .
 
       # ----------------------------
       # Step 5: Login to Docker Hub
@@ -54,7 +58,7 @@ jobs:
       # Step 6: Push Docker image
       # ----------------------------
       - name: Push Docker image
-        run: docker push adammeh/demo-cicd:${{ steps.decide-tag.outputs.tag }}
+        run: docker push adammeh/demo-cicd:${{ steps.build_target.outputs.VERSION }}
 
       # ----------------------------
       # Step 7: Copy NGINX config to EC2
@@ -65,12 +69,12 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "nginx.conf"
+          source: ${{ steps.build_target.outputs.VERSION == 'v1' && 'nginx-v1.conf' || 'nginx-canary.conf' }}
           target: "/home/ubuntu/nginx/"
           overwrite: true
 
       # ----------------------------
-      # Step 8: SSH into EC2 and deploy
+      # Step 8: Deploy to EC2
       # ----------------------------
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
@@ -79,29 +83,29 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Logging into Docker Hub on EC2..."
+            echo "Logging into Docker Hub..."
             docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
-            echo "Creating Docker network if not exists..."
+            # Ensure Docker network
             docker network create demo-net || true
 
-            echo "Deploying v1..."
-            docker rm -f demo-v1 2>/dev/null || true
-            docker pull adammeh/demo-cicd:v1 || true
-            docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1 || true
+            # Run v1 if missing
+            if ! docker ps -q -f name=demo-v1; then
+              echo "Starting demo-v1..."
+              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
+            fi
 
-            echo "Deploying v2 (if exists)..."
-            if docker manifest inspect adammeh/demo-cicd:v2 > /dev/null 2>&1; then
+            # Run v2 if being deployed
+            if docker image inspect adammeh/demo-cicd:v2 >/dev/null 2>&1; then
               docker rm -f demo-v2 2>/dev/null || true
-              docker pull adammeh/demo-cicd:v2
               docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
             fi
 
-            echo "Restarting NGINX..."
+            # Start or reload NGINX
             docker rm -f nginx 2>/dev/null || true
             docker run -d --name nginx --network demo-net -p 80:80 -v /home/ubuntu/nginx:/etc/nginx:ro nginx:latest
 
             echo "✅ Deployment complete!"
-            echo "NGINX Canary URL: http://<your-ec2-ip>"
-            echo "Direct v1 URL:   http://<your-ec2-ip>:8081"
-            echo "Direct v2 URL:   http://<your-ec2-ip>:8082"
+            echo "NGINX canary URL: http://<your-ec2-public-ip>"
+            echo "Direct v1 URL: http://<your-ec2-public-ip>:8081"
+            echo "Direct v2 URL: http://<your-ec2-public-ip>:8082"
