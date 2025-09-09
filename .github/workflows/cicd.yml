@@ -42,31 +42,22 @@ jobs:
           fi
 
       # ----------------------------
-      # Step 4: Delete old v2 image (if building v2)
-      # ----------------------------
-      - name: Remove old v2 image
-        if: steps.set_version.outputs.VERSION == 'v2'
-        run: |
-          echo "Deleting old v2 image if it exists..."
-          docker rmi -f adammeh/demo-cicd:v2 || true
-
-      # ----------------------------
-      # Step 5: Build Docker image
+      # Step 4: Build Docker image
       # ----------------------------
       - name: Build Docker image
         run: |
           mvn clean install -DskipTests
           VERSION="${{ steps.set_version.outputs.VERSION }}"
-          docker build -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
+          docker build --no-cache -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
 
       # ----------------------------
-      # Step 6: Login to Docker Hub
+      # Step 5: Login to Docker Hub
       # ----------------------------
       - name: Docker Hub login
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
       # ----------------------------
-      # Step 7: Push Docker image
+      # Step 6: Push Docker image
       # ----------------------------
       - name: Push Docker image
         run: |
@@ -74,7 +65,7 @@ jobs:
           docker push adammeh/demo-cicd:$VERSION
 
       # ----------------------------
-      # Step 8: Choose NGINX config file
+      # Step 7: Choose NGINX config file
       # ----------------------------
       - name: Set NGINX config file
         id: nginx_file
@@ -87,7 +78,7 @@ jobs:
           fi
 
       # ----------------------------
-      # Step 9: Copy NGINX config to EC2
+      # Step 8: Copy NGINX config to EC2
       # ----------------------------
       - name: Copy NGINX config
         uses: appleboy/scp-action@v0.1.7
@@ -100,7 +91,7 @@ jobs:
           overwrite: true
 
       # ----------------------------
-      # Step 10: SSH into EC2 and deploy containers
+      # Step 9: SSH into EC2 and deploy containers
       # ----------------------------
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
@@ -118,14 +109,22 @@ jobs:
             docker network create demo-net || true
 
             if [ "$VERSION" = "v1" ]; then
-              # Start v1 if not running
-              if ! [ "$(docker ps -q -f name=demo-v1)" ]; then
-                docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
-              fi
+              # Stop old v1 container
+              docker rm -f demo-v1 2>/dev/null || true
+              # Remove old v1 image
+              docker rmi -f adammeh/demo-cicd:v1 || true
+              # Pull/build fresh v1 image
+              docker pull adammeh/demo-cicd:v1
+              # Start new v1 container
+              docker run -d --name demo-v1 --network demo-net -p 8081:8080 adammeh/demo-cicd:v1
             else
-              # Stop old v2 if exists
+              # Stop old v2 container
               docker rm -f demo-v2 2>/dev/null || true
-              # Start v2
+              # Remove old v2 image
+              docker rmi -f adammeh/demo-cicd:v2 || true
+              # Pull/build fresh v2 image
+              docker pull adammeh/demo-cicd:v2
+              # Start new v2 container
               docker run -d --name demo-v2 --network demo-net -p 8082:8080 adammeh/demo-cicd:v2
             fi
 
@@ -140,4 +139,5 @@ jobs:
                 -v /home/ubuntu/nginx/nginx2.conf:/etc/nginx/nginx.conf:ro \
                 nginx:latest
             fi
+
             echo "Deployment complete! VERSION=$VERSION"
