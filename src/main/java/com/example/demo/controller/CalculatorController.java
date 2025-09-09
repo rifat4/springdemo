@@ -21,6 +21,7 @@ public class CalculatorController {
     @PostMapping("/calculate")
     public String calculate(@RequestParam String expression, Model model) {
         model.addAttribute("expression", expression);
+        model.addAttribute("theme", version.equals("v2") ? "dark" : "light"); // ← Add this line
         try {
             double result = evaluate(expression);
             model.addAttribute("result", result);
@@ -29,6 +30,7 @@ public class CalculatorController {
         }
         return "calculator";
     }
+
 
     private double evaluate(String expr) {
         expr = expr.replaceAll("\\s+", ""); // remove all spaces
