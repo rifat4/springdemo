@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,7 +13,8 @@ public class CalculatorController {
     private String version;
 
     @GetMapping("/calculate")
-    public String showCalculator(Model model) {
+    public String showCalculator(Model model, HttpSession session) {
+        session.setAttribute("persistenceOnPost", version);
         model.addAttribute("expression", "");
         model.addAttribute("persistenceOnPost", version);
         model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
@@ -20,12 +22,12 @@ public class CalculatorController {
     }
 
     @PostMapping("/calculate")
-    public String calculate(@RequestParam String expression, String persistenceOnPost, Model model) {
+    public String calculate(@RequestParam String expression, HttpSession session, Model model) {
+        String persistenceOnPost = (String) session.getAttribute("persistenceOnPost");
+
         model.addAttribute("expression", expression);
         model.addAttribute("persistenceOnPost", persistenceOnPost);
-
-        model.addAttribute("theme", version.equals(persistenceOnPost) ? "dark" : "light");
-        model.addAttribute("theme", version.equals(persistenceOnPost) ? "dark" : "light");
+        model.addAttribute("theme", "v2".equals(persistenceOnPost) ? "dark" : "light");
 
         try {
             double result = evaluate(expression);
