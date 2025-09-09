@@ -132,3 +132,4 @@ jobs:
                 nginx:latest
             fi
             echo "Deployment complete! VERSION=$VERSION"
+
