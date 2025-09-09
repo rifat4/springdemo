@@ -14,11 +14,11 @@ public class CalculatorController {
     @Value("${app.version}")
     private String version;
 
-    @GetMapping("/calculate")
+    @GetMapping("/calculator")
     public String showCalculator(Model model, HttpServletResponse response) {
         // Set a cookie with the instance/version that served the GET
         ResponseCookie cookie = ResponseCookie.from("persistenceOnPost", version)
-                .path("/calculate")
+                .path("/calculator")
                 .httpOnly(true)   // not visible to JS
                 .secure(true)     // set true if you use HTTPS
                 .sameSite("Lax")
@@ -31,7 +31,7 @@ public class CalculatorController {
         return "calculator";
     }
 
-    @PostMapping("/calculate")
+    @PostMapping("/calculator")
     public String calculate(@RequestParam String expression,
                             @CookieValue(value = "persistenceOnPost", required = false) String persistenceOnPost,
                             Model model) {
