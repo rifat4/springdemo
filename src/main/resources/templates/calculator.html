@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <title>Backend Calculator</title>
     <style>
-        .light {
+        body.light {
             background-color: #ffffff;
             color: #000000;
         }
 
-        .dark {
+        body.dark {
             background-color: #121212;
             color: #f0f0f0;
         }
 
-        .light .calculator {
+        body.light .calculator {
             background-color: #f0f0f0;
             border-color: #333;
         }
 
-        .dark .calculator {
+        body.dark .calculator {
             background-color: #1e1e1e;
             border-color: #555;
         }
@@ -58,17 +58,17 @@
             border-radius: 5px;
         }
 
-        .light .buttons button {
+        body.light .buttons button {
             background-color: #e0e0e0;
             color: #000;
         }
 
-        .dark .buttons button {
+        body.dark .buttons button {
             background-color: #333;
             color: #f0f0f0;
         }
 
-        .dark .buttons button:hover {
+        body.dark .buttons button:hover {
             background-color: #444;
         }
 
@@ -83,44 +83,42 @@
         }
     </style>
 </head>
-<body>
-<div th:class="${theme}">
-    <div class="calculator">
-        <form th:action="@{/calculate}" method="post">
-            <input type="text" id="expression" name="expression" class="display" th:value="${expression}" readonly />
-            <div class="buttons">
-                <button type="button" onclick="append('7')">7</button>
-                <button type="button" onclick="append('8')">8</button>
-                <button type="button" onclick="append('9')">9</button>
-                <button type="button" onclick="append('/')">÷</button>
+<body th:attr="class=${theme}">
+<div class="calculator">
+    <form th:action="@{/calculate}" method="post">
+        <input type="text" id="expression" name="expression" class="display" th:value="${expression}" readonly />
+        <div class="buttons">
+            <button type="button" onclick="append('7')">7</button>
+            <button type="button" onclick="append('8')">8</button>
+            <button type="button" onclick="append('9')">9</button>
+            <button type="button" onclick="append('/')">÷</button>
 
-                <button type="button" onclick="append('4')">4</button>
-                <button type="button" onclick="append('5')">5</button>
-                <button type="button" onclick="append('6')">6</button>
-                <button type="button" onclick="append('*')">×</button>
+            <button type="button" onclick="append('4')">4</button>
+            <button type="button" onclick="append('5')">5</button>
+            <button type="button" onclick="append('6')">6</button>
+            <button type="button" onclick="append('*')">×</button>
 
-                <button type="button" onclick="append('1')">1</button>
-                <button type="button" onclick="append('2')">2</button>
-                <button type="button" onclick="append('3')">3</button>
-                <button type="button" onclick="append('-')">−</button>
+            <button type="button" onclick="append('1')">1</button>
+            <button type="button" onclick="append('2')">2</button>
+            <button type="button" onclick="append('3')">3</button>
+            <button type="button" onclick="append('-')">−</button>
 
-                <button type="button" onclick="append('0')">0</button>
-                <button type="button" onclick="append('.')">.</button>
-                <button type="submit">=</button>
-                <button type="button" onclick="append('+')">+</button>
+            <button type="button" onclick="append('0')">0</button>
+            <button type="button" onclick="append('.')">.</button>
+            <button type="submit">=</button>
+            <button type="button" onclick="append('+')">+</button>
 
-                <button type="button" onclick="clearDisplay()" class="wide">C</button>
-            </div>
-        </form>
-
-        <div th:if="${result != null}">
-            <h3>Result: <span th:text="${result}"></span></h3>
+            <button type="button" onclick="clearDisplay()" class="wide">C</button>
         </div>
+    </form>
 
-        <footer>
-            Theme: <span th:text="${theme}"></span> | Version: <span th:text="${@environment.getProperty('app.version')}"></span>
-        </footer>
+    <div th:if="${result != null}">
+        <h3>Result: <span th:text="${result}"></span></h3>
     </div>
+
+    <footer>
+        Theme: <span th:text="${theme}"></span> | Version: <span th:text="${@environment.getProperty('app.version')}"></span>
+    </footer>
 </div>
 
 <script>
