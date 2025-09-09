@@ -85,7 +85,7 @@
 </head>
 <body th:attr="class=${theme}">
 <div class="calculator">
-    <form th:action="@{/calculate}" method="post">
+    <form th:action="@{/calculator}" method="post">
         <input type="text" id="expression" name="expression" class="display" th:value="${expression}" readonly />
         <div class="buttons">
             <button type="button" onclick="append('7')">7</button>
