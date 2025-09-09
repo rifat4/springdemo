@@ -42,22 +42,31 @@ jobs:
           fi
 
       # ----------------------------
-      # Step 4: Build Docker image
+      # Step 4: Delete old v2 image (if building v2)
+      # ----------------------------
+      - name: Remove old v2 image
+        if: steps.set_version.outputs.VERSION == 'v2'
+        run: |
+          echo "Deleting old v2 image if it exists..."
+          docker rmi -f adammeh/demo-cicd:v2 || true
+
+      # ----------------------------
+      # Step 5: Build Docker image
       # ----------------------------
       - name: Build Docker image
         run: |
           mvn clean install -DskipTests
           VERSION="${{ steps.set_version.outputs.VERSION }}"
-          docker build --no-cache -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
+          docker build -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
 
       # ----------------------------
-      # Step 5: Login to Docker Hub
+      # Step 6: Login to Docker Hub
       # ----------------------------
       - name: Docker Hub login
         run: docker login -u "${{ secrets.DOCKER_USERNAME2 }}" -p "${{ secrets.DOCKER_PASSWORD2 }}"
 
       # ----------------------------
-      # Step 6: Push Docker image
+      # Step 7: Push Docker image
       # ----------------------------
       - name: Push Docker image
         run: |
@@ -65,7 +74,7 @@ jobs:
           docker push adammeh/demo-cicd:$VERSION
 
       # ----------------------------
-      # Step 7: Choose NGINX config file
+      # Step 8: Choose NGINX config file
       # ----------------------------
       - name: Set NGINX config file
         id: nginx_file
@@ -78,7 +87,7 @@ jobs:
           fi
 
       # ----------------------------
-      # Step 8: Copy NGINX config to EC2
+      # Step 9: Copy NGINX config to EC2
       # ----------------------------
       - name: Copy NGINX config
         uses: appleboy/scp-action@v0.1.7
@@ -91,7 +100,7 @@ jobs:
           overwrite: true
 
       # ----------------------------
-      # Step 9: SSH into EC2 and deploy containers
+      # Step 10: SSH into EC2 and deploy containers
       # ----------------------------
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
