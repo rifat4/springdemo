@@ -18,13 +18,14 @@ public class CalculatorController {
         model.addAttribute("expression", "");
         persistanceOnPost = version;
         model.addAttribute("persistanceOnPost", persistanceOnPost);
-        model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
+        model.addAttribute("theme", version.equals(persistanceOnPost) ? "dark" : "light");
         return "calculator";
     }
 
     @PostMapping("/calculate")
     public String calculate(@RequestParam String expression, Model model) {
         model.addAttribute("expression", expression);
+        model.addAttribute("persistanceOnPost", persistanceOnPost);
         if(persistanceOnPost == null){
             persistanceOnPost = version;
         }
