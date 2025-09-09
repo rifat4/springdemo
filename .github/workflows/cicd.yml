@@ -35,7 +35,7 @@ jobs:
         # ----------------------------
 
       - name: Run tests
-        run: mvn -q -B -o test
+        run: mvn -q -B test
 
       # ----------------------------
       # Step 4: Login to Docker Hub
