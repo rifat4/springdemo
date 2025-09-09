@@ -17,6 +17,7 @@ public class CalculatorController {
     public String showCalculator(Model model) {
         model.addAttribute("expression", "");
         persistanceOnPost = version;
+        model.addAttribute("persistanceOnPost", persistanceOnPost);
         model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
         return "calculator";
     }
