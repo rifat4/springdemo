@@ -34,8 +34,12 @@ jobs:
         # Step 3.1: Run tests
         # ----------------------------
 
-      - name: Run tests
-        run: mvn -B test | grep -vE "Downloading|Downloaded|Spring|INFO|DEBUG"
+      - name: Run Tests
+        run: |
+          mvn test \
+            -Dspring.main.banner-mode=off \
+            -Dlogging.level.root=ERROR \
+            -DtrimStackTrace=true
 
       # ----------------------------
       # Step 4: Login to Docker Hub
