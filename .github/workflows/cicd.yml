@@ -1,4 +1,4 @@
-name: demo-canary-ec2-dynamic
+name: demo-canary-ec2
 
 on:
   push:
@@ -131,5 +131,4 @@ jobs:
                 -v /home/ubuntu/nginx/nginx2.conf:/etc/nginx/nginx.conf:ro \
                 nginx:latest
             fi
-
-            echo "✅ Deployment complete! VERSION=$VERSION"
+            echo "Deployment complete! VERSION=$VERSION"
