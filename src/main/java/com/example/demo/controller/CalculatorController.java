@@ -57,7 +57,7 @@ public class CalculatorController {
     }
 
 
-    private double evaluate(String expr) {
+    public double evaluate(String expr) {
         expr = expr.replaceAll("\\s+", ""); // remove all spaces
         String[] tokens = expr.split("(?<=[0-9])(?=[+\\-*/])|(?<=[+\\-*/])(?=[0-9])");
 
