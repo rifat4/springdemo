@@ -24,17 +24,18 @@ jobs:
           java-version: '17'
 
       # ----------------------------
-      # Step 3.1: Run tests
-      # ----------------------------
-      - name: Run tests
-        run: mvn -q test
-
-      # ----------------------------
       # Step 3: Build artifact without testing
       # ----------------------------
 
       - name: Build artifact
         run: mvn clean install -DskipTests
+
+        # ----------------------------
+        # Step 3.1: Run tests
+        # ----------------------------
+
+      - name: Run tests
+        run: mvn -q -B -o test
 
       # ----------------------------
       # Step 4: Login to Docker Hub
