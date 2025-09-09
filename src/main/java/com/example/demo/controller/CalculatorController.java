@@ -11,29 +11,22 @@ public class CalculatorController {
     @Value("${app.version}")
     private String version;
 
-    private String persistanceOnPost = null;
-
     @GetMapping("/calculate")
     public String showCalculator(Model model) {
         model.addAttribute("expression", "");
-        persistanceOnPost = version;
-        model.addAttribute("persistanceOnPost", persistanceOnPost);
-        model.addAttribute("theme", version.equals(persistanceOnPost) ? "dark" : "light");
+        model.addAttribute("persistenceOnPost", version);
+        model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
         return "calculator";
     }
 
     @PostMapping("/calculate")
-    public String calculate(@RequestParam String expression, Model model) {
+    public String calculate(@RequestParam String expression, String persistenceOnPost, Model model) {
         model.addAttribute("expression", expression);
-        model.addAttribute("persistanceOnPost", persistanceOnPost);
-        if(persistanceOnPost == null){
-            persistanceOnPost = version;
-        }
-        if(persistanceOnPost!= null) {
-            model.addAttribute("theme", version.equals(persistanceOnPost) ? "dark" : "light");
-        } else {
-            model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
-        }
+        model.addAttribute("persistenceOnPost", persistenceOnPost);
+
+        model.addAttribute("theme", version.equals(persistenceOnPost) ? "dark" : "light");
+        model.addAttribute("theme", version.equals(persistenceOnPost) ? "dark" : "light");
+
         try {
             double result = evaluate(expression);
             model.addAttribute("result", result);
