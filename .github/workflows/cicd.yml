@@ -27,7 +27,7 @@ jobs:
       # Step 3.1: Run tests
       # ----------------------------
       - name: Run tests
-        run: mvn test
+        run: mvn -q test
 
       # ----------------------------
       # Step 3: Build artifact without testing
