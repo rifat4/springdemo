@@ -48,7 +48,7 @@ jobs:
         run: |
           mvn clean install -DskipTests
           VERSION="${{ steps.set_version.outputs.VERSION }}"
-          docker build -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
+          docker build --no-cache -t adammeh/demo-cicd:$VERSION --build-arg APP_VERSION=$VERSION .
 
       # ----------------------------
       # Step 5: Login to Docker Hub
