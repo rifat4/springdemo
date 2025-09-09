@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -7,10 +8,14 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 public class CalculatorController {
 
+    @Value("${app.version}")
+    private String version;
+
     @GetMapping("/calculate")
     public String showCalculator(Model model) {
         model.addAttribute("expression", "");
-        return "calculator"; // This must match calculator.html
+        model.addAttribute("theme", version.equals("v2") ? "dark" : "light");
+        return "calculator";
     }
 
     @PostMapping("/calculate")
