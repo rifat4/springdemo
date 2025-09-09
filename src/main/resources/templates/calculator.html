@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Backend Calculator</title>
+    <style>
+        body.light {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        body.dark {
+            background-color: #121212;
+            color: #f0f0f0;
+        }
+
+        body.light .calculator {
+            background-color: #f0f0f0;
+            border-color: #333;
+        }
+
+        body.dark .calculator {
+            background-color: #1e1e1e;
+            border-color: #555;
+        }
+
+        .calculator {
+            border: 2px solid;
+            padding: 20px;
+            border-radius: 10px;
+            width: 320px;
+            margin: 50px auto;
+        }
+
+        .display {
+            width: 100%;
+            height: 50px;
+            font-size: 1.5em;
+            text-align: right;
+            margin-bottom: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: inherit;
+            color: inherit;
+            border: none;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .buttons button {
+            height: 50px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+        }
+
+        body.light .buttons button {
+            background-color: #e0e0e0;
+            color: #000;
+        }
+
+        body.dark .buttons button {
+            background-color: #333;
+            color: #f0f0f0;
+        }
+
+        body.dark .buttons button:hover {
+            background-color: #444;
+        }
+
+        .wide {
+            grid-column: span 4;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.8em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body th:attr="class=${theme}">
+<div class="calculator">
+    <form th:action="@{/calculate}" method="post">
+        <input type="text" id="expression" name="expression" class="display" th:value="${expression}" readonly />
+        <div class="buttons">
+            <button type="button" onclick="append('7')">7</button>
+            <button type="button" onclick="append('8')">8</button>
+            <button type="button" onclick="append('9')">9</button>
+            <button type="button" onclick="append('/')">÷</button>
+
+            <button type="button" onclick="append('4')">4</button>
+            <button type="button" onclick="append('5')">5</button>
+            <button type="button" onclick="append('6')">6</button>
+            <button type="button" onclick="append('*')">×</button>
+
+            <button type="button" onclick="append('1')">1</button>
+            <button type="button" onclick="append('2')">2</button>
+            <button type="button" onclick="append('3')">3</button>
+            <button type="button" onclick="append('-')">−</button>
+
+            <button type="button" onclick="append('0')">0</button>
+            <button type="button" onclick="append('.')">.</button>
+            <button type="submit">=</button>
+            <button type="button" onclick="append('+')">+</button>
+
+            <button type="button" onclick="clearDisplay()" class="wide">C</button>
+        </div>
+    </form>
+
+    <div th:if="${result != null}">
+        <h3>Result: <span th:text="${result}"></span></h3>
+    </div>
+
+    <footer>
+        Theme: <span th:text="${theme}"></span> | Version: <span th:text="${persistenceOnPost}"></span>
+    </footer>
+</div>
+
+<script>
+    function append(value) {
+        const input = document.getElementById('expression');
+        input.value += value;
+    }
+
+    function clearDisplay() {
+        document.getElementById('expression').value = '';
+    }
+</script>
+</body>
+</html>
