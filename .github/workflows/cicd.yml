@@ -94,11 +94,3 @@ jobs:
             --network demo-net \
             -p 80:80 \
             calften/demo-nginx:latest
-      
-
-      - name: Output URLs
-        run: |
-          echo "✅ Canary deployment complete!"
-          echo "NGINX canary URL: http://localhost"
-          echo "Direct v1 URL: http://localhost:8081"
-          echo "Direct v2 URL: http://localhost:8082"
