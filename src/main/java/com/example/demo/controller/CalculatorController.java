@@ -14,53 +14,47 @@ public class CalculatorController {
     @Value("${app.version}")
     private String version;
 
-    @Controller
-    public class CalculatorController {
+    @GetMapping("/calculate")
+    public String showCalculator(Model model, HttpServletResponse response) {
+        // Set a cookie with the instance/version that served the GET
+        ResponseCookie cookie = ResponseCookie.from("persistenceOnPost", version)
+                .path("/")
+                .httpOnly(true)   // not visible to JS
+                .secure(true)     // set true if you use HTTPS
+                .sameSite("Lax")
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
 
-        @Value("${app.version}")
-        private String version;
+        model.addAttribute("expression", "");
+        model.addAttribute("persistenceOnPost", version);
+        model.addAttribute("theme", "v2".equals(version) ? "dark" : "light");
+        return "calculator";
+    }
 
-        @GetMapping("/calculate")
-        public String showCalculator(Model model, HttpServletResponse response) {
-            // Set a cookie with the instance/version that served the GET
-            ResponseCookie cookie = ResponseCookie.from("persistenceOnPost", version)
-                    .path("/")
-                    .httpOnly(true)   // not visible to JS
-                    .secure(true)     // set true if you use HTTPS
-                    .sameSite("Lax")
-                    .build();
-            response.addHeader("Set-Cookie", cookie.toString());
+    @PostMapping("/calculate")
+    public String calculate(@RequestParam String expression,
+                            @CookieValue(value = "persistenceOnPost", required = false) String persistenceOnPost,
+                            Model model) {
 
-            model.addAttribute("expression", "");
-            model.addAttribute("persistenceOnPost", version);
-            model.addAttribute("theme", "v2".equals(version) ? "dark" : "light");
-            return "calculator";
+        // Fallback in case the cookie is missing for any reason
+        if (persistenceOnPost == null) {
+            persistenceOnPost = version;
         }
 
-        @PostMapping("/calculate")
-        public String calculate(@RequestParam String expression,
-                                @CookieValue(value = "persistenceOnPost", required = false) String persistenceOnPost,
-                                Model model) {
+        model.addAttribute("expression", expression);
+        model.addAttribute("persistenceOnPost", persistenceOnPost);
 
-            // Fallback in case the cookie is missing for any reason
-            if (persistenceOnPost == null) {
-                persistenceOnPost = version;
-            }
+        // IMPORTANT: decide theme from the *carried* version, not the current node's version
+        model.addAttribute("theme", "v2".equals(persistenceOnPost) ? "dark" : "light");
 
-            model.addAttribute("expression", expression);
-            model.addAttribute("persistenceOnPost", persistenceOnPost);
-
-            // IMPORTANT: decide theme from the *carried* version, not the current node's version
-            model.addAttribute("theme", "v2".equals(persistenceOnPost) ? "dark" : "light");
-
-            try {
-                double result = evaluate(expression);
-                model.addAttribute("result", result);
-            } catch (Exception e) {
-                model.addAttribute("result", "Error");
-            }
-            return "calculator";
+        try {
+            double result = evaluate(expression);
+            model.addAttribute("result", result);
+        } catch (Exception e) {
+            model.addAttribute("result", "Error");
         }
+        return "calculator";
+    }
 
 
     private double evaluate(String expr) {
