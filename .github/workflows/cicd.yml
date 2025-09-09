@@ -35,7 +35,7 @@ jobs:
         # ----------------------------
 
       - name: Run tests
-        run: mvn -q -B test
+        run: mvn -B test | grep -vE "Downloading|Downloaded|Spring|INFO|DEBUG"
 
       # ----------------------------
       # Step 4: Login to Docker Hub
