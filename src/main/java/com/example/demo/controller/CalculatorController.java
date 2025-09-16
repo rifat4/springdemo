@@ -128,6 +128,7 @@ public class CalculatorController {
         return switch (op) {
             case '+', '-' -> 1;
             case '*', '/' -> 2;
+            case '^' -> 3;
             default -> -1;
         };
     }
@@ -141,6 +142,7 @@ public class CalculatorController {
                 if (b == 0) throw new ArithmeticException("Division by zero");
                 yield a / b;
             }
+            case '^' -> a * b;
             default -> throw new IllegalArgumentException("Unknown operator: " + op);
         };
     }
