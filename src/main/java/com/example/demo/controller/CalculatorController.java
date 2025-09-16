@@ -58,22 +58,92 @@ public class CalculatorController {
 
 
     private double evaluate(String expr) {
-        expr = expr.replaceAll("\\s+", ""); // remove all spaces
-        String[] tokens = expr.split("(?<=[0-9])(?=[+\\-*/])|(?<=[+\\-*/])(?=[0-9])");
+        expr = expr.replaceAll("\\s+", ""); // remove whitespace
+        return evalInfix(expr);
+    }
 
-        if (tokens.length != 3) throw new IllegalArgumentException("Invalid expression");
+    private double evalInfix(String expr) {
+        // Convert infix (e.g. "2+3*4") to postfix (RPN: "2 3 4 * +") and evaluate
+        java.util.Stack<Double> values = new java.util.Stack<>();
+        java.util.Stack<Character> ops = new java.util.Stack<>();
 
-        double num1 = Double.parseDouble(tokens[0]);
-        String op = tokens[1];
-        double num2 = Double.parseDouble(tokens[2]);
+        for (int i = 0; i < expr.length();) {
+            char c = expr.charAt(i);
 
+            if (Character.isDigit(c) || c == '.') {
+                // Parse number (supports decimals)
+                int j = i;
+                while (j < expr.length() && 
+                    (Character.isDigit(expr.charAt(j)) || expr.charAt(j) == '.')) {
+                    j++;
+                }
+                double val = Double.parseDouble(expr.substring(i, j));
+                values.push(val);
+                i = j;
+            } else if (c == '(') {
+                ops.push(c);
+                i++;
+            } else if (c == ')') {
+                while (!ops.isEmpty() && ops.peek() != '(') {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                if (!ops.isEmpty() && ops.peek() == '(') {
+                    ops.pop(); // discard '('
+                }
+                i++;
+            } else if ("+-*/".indexOf(c) != -1) {
+                // Handle unary minus (negative numbers)
+                if ((c == '-' && (i == 0 || expr.charAt(i - 1) == '(' || "+-*/".indexOf(expr.charAt(i - 1)) != -1))) {
+                    // Treat as part of the number
+                    int j = i + 1;
+                    while (j < expr.length() && 
+                        (Character.isDigit(expr.charAt(j)) || expr.charAt(j) == '.')) {
+                        j++;
+                    }
+                    double val = Double.parseDouble(expr.substring(i, j));
+                    values.push(val);
+                    i = j;
+                    continue;
+                }
+
+                while (!ops.isEmpty() && precedence(ops.peek()) >= precedence(c)) {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                ops.push(c);
+                i++;
+            } else {
+                throw new IllegalArgumentException("Invalid character: " + c);
+            }
+        }
+
+        while (!ops.isEmpty()) {
+            values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+        }
+
+        if (values.size() != 1) throw new IllegalArgumentException("Invalid expression");
+        return values.pop();
+    }
+
+    private int precedence(char op) {
         return switch (op) {
-            case "+" -> num1 + num2;
-            case "-" -> num1 - num2;
-            case "*" -> num1 * num2;
-            case "/" -> num2 != 0 ? num1 / num2 : Double.NaN;
-            default -> throw new IllegalArgumentException("Unknown operator");
+            case '+', '-' -> 1;
+            case '*', '/' -> 2;
+            default -> -1;
         };
     }
+
+    private double applyOp(char op, double b, double a) {
+        return switch (op) {
+            case '+' -> a + b;
+            case '-' -> a - b;
+            case '*' -> a * b;
+            case '/' -> {
+                if (b == 0) throw new ArithmeticException("Division by zero");
+                yield a / b;
+            }
+            default -> throw new IllegalArgumentException("Unknown operator: " + op);
+        };
+    }
+
 
 }
