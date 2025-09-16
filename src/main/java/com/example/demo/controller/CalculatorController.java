@@ -91,7 +91,7 @@ public class CalculatorController {
                     ops.pop(); // discard '('
                 }
                 i++;
-            } else if ("+-*/".indexOf(c) != -1) {
+            } else if ("+-*/^".indexOf(c) != -1) {
                 // Handle unary minus (negative numbers)
                 if ((c == '-' && (i == 0 || expr.charAt(i - 1) == '(' || "+-*/".indexOf(expr.charAt(i - 1)) != -1))) {
                     // Treat as part of the number
