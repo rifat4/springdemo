@@ -141,3 +141,4 @@ jobs:
             fi
 
             echo "Deployment complete! VERSION=$VERSION"
+
