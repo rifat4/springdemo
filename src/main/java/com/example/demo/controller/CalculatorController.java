@@ -91,7 +91,7 @@ public class CalculatorController {
                     ops.pop(); // discard '('
                 }
                 i++;
-            } else if ("+-*/^".indexOf(c) != -1) {
+            } else if ("+-*/".indexOf(c) != -1) {
                 // Handle unary minus (negative numbers)
                 if ((c == '-' && (i == 0 || expr.charAt(i - 1) == '(' || "+-*/".indexOf(expr.charAt(i - 1)) != -1))) {
                     // Treat as part of the number
@@ -128,7 +128,6 @@ public class CalculatorController {
         return switch (op) {
             case '+', '-' -> 1;
             case '*', '/' -> 2;
-            case '^' -> 3;
             default -> -1;
         };
     }
@@ -142,7 +141,6 @@ public class CalculatorController {
                 if (b == 0) throw new ArithmeticException("Division by zero");
                 yield a / b;
             }
-            case '^' -> a * b;
             default -> throw new IllegalArgumentException("Unknown operator: " + op);
         };
     }
